@@ -1,0 +1,57 @@
+---
+import "katex/dist/katex.min.css";
+import "../styles/global.css";
+
+interface Props {
+	title: string;
+	description: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width" />
+		<meta name="generator" content={Astro.generator} />
+		<meta name="description" content={description} />
+		<meta name="theme-color" content="#f6f7f5" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<title>{title}</title>
+	</head>
+	<body>
+		<a class="skip-link" href="#main">Skip to content</a>
+		<slot />
+		<script>
+			const diagrams = document.querySelectorAll('pre[data-language="mermaid"]');
+
+			if (diagrams.length > 0) {
+				const { default: mermaid } = await import("mermaid");
+				mermaid.initialize({
+					startOnLoad: false,
+					theme: "neutral",
+					securityLevel: "strict",
+				});
+
+				for (const [index, pre] of diagrams.entries()) {
+					const source = pre.textContent;
+
+					if (!source || !pre) continue;
+
+					try {
+						const { svg, bindFunctions } = await mermaid.render(`research-diagram-${index}`, source);
+						const diagram = document.createElement("div");
+						diagram.className = "mermaid-diagram";
+						diagram.innerHTML = svg;
+						pre.replaceWith(diagram);
+						bindFunctions?.(diagram);
+					} catch (error) {
+						console.error("Could not render the Mermaid research diagram.", error);
+					}
+				}
+			}
+		</script>
+	</body>
+</html>

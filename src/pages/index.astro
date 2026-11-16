@@ -1,0 +1,307 @@
+---
+import { getCollection } from "astro:content";
+import SiteLayout from "../layouts/SiteLayout.astro";
+
+const posts = (await getCollection("posts")).sort((a, b) => a.data.order - b.data.order);
+---
+
+<SiteLayout
+	title="Researching memory-efficient LLM inference on Windows"
+	description="A research portfolio exploring a Windows-native Safetensors inference runtime with C#, Direct3D compute shaders, layer streaming, and memory-aware KV cache management."
+>
+	<header class="site-header">
+		<a class="brand" href="#top" aria-label="Inference Research home">
+			<span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+			<span>INFERENCE<span class="brand-divider">/</span>RESEARCH</span>
+		</a>
+		<nav aria-label="Main navigation">
+			<a href="#research">Research</a>
+			<a href="#runtime">Runtime</a>
+			<a href="#benchmarks">Benchmarks</a>
+			<a href="#about">About</a>
+		</nav>
+		<a class="header-link" href="#publications">Read the research <span aria-hidden="true">↗</span></a>
+	</header>
+
+	<main id="main">
+		<section class="hero section-wrap" id="top">
+			<div class="hero-copy">
+				<p class="eyebrow"><span class="status-dot"></span> INDEPENDENT SYSTEMS RESEARCH</p>
+				<h1>What if an LLM could run <em>within the memory you have?</em></h1>
+				<p class="hero-lede">
+					Exploring a Windows-native inference runtime that streams model weights from Safetensors
+	and executes transformer layers on a consumer GPU.
+				</p>
+				<div class="hero-actions">
+					<a class="button button-dark" href="#research">Explore the research <span aria-hidden="true">↓</span></a>
+					<a class="text-link" href="#runtime">The runtime architecture <span aria-hidden="true">↗</span></a>
+				</div>
+				<div class="hero-meta">
+					<span>WINDOWS · C# · DIRECT3D</span>
+					<span>RESEARCH PROTOTYPE</span>
+				</div>
+			</div>
+			<div class="hero-visual" aria-label="Illustration of model layers streaming through a 6 GB GPU memory budget">
+				<div class="visual-topline"><span>MEMORY WINDOW</span><span>CONSTRAINED / 6 GB</span></div>
+				<div class="memory-card">
+					<div class="memory-caption"><span>GPU MEMORY</span><span>FINITE RESOURCE</span></div>
+					<div class="memory-amount">6<span>GB</span></div>
+					<div class="memory-meter" aria-hidden="true">
+						<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+					</div>
+					<div class="memory-labels"><span>MODEL WEIGHTS</span><span>WORKING SET</span></div>
+				</div>
+				<div class="layer-flow" aria-hidden="true">
+					<div class="layer-stack">
+						<span>Layer 01</span><span>Layer 02</span><span class="layer-active">Layer N</span><span>Layer N+1</span>
+					</div>
+					<div class="flow-line"><span></span></div>
+					<div class="gpu-chip"><span class="chip-mark">D3D</span><span>COMPUTE<br />SHADERS</span></div>
+				</div>
+				<div class="visual-foot"><span>LOAD · COMPUTE · RELEASE</span><span class="pulse-line"></span></div>
+			</div>
+			<div class="hero-index"><span>01</span><span>THE MEMORY PROBLEM</span><span>SCROLL TO INVESTIGATE ↓</span></div>
+		</section>
+
+		<section class="problem-section section-pad" id="problem">
+			<div class="section-heading">
+				<p class="eyebrow">01 / THE PROBLEM</p>
+				<h2>Inference has a <em>memory problem.</em></h2>
+				<p class="section-intro">
+					Existing inference paths often assume generous hardware or a heavyweight software stack.
+					That leaves a gap between a model that exists and a model that can actually run locally.
+				</p>
+			</div>
+			<div class="problem-grid">
+				<article class="problem-card">
+					<span class="card-number">01</span>
+					<h3>Heavyweight setup</h3>
+					<p>A Python runtime can exceed 1 GB before model weights enter the picture; CUDA and cuDNN add more dependencies to the setup.</p>
+					<span class="card-tag">RUNTIME OVERHEAD</span>
+				</article>
+				<article class="problem-card">
+					<span class="card-number">02</span>
+					<h3>Conversion friction</h3>
+					<p>ONNX export and conversion can add steps between model weights and execution, complicating a direct, inspectable path.</p>
+					<span class="card-tag">TOOLING FRICTION</span>
+				</article>
+				<article class="problem-card">
+					<span class="card-number">03</span>
+					<h3>Peak memory pressure</h3>
+					<p>Model weights, intermediate activations and a growing KV cache compete for the same limited GPU memory.</p>
+					<span class="card-tag">MEMORY BUDGET</span>
+				</article>
+				<article class="problem-card problem-card-accent">
+					<span class="card-number">04</span>
+					<h3>Consumer hardware</h3>
+					<p>A Windows Surface Book with a 6 GB NVIDIA GPU makes those constraints concrete—and measurable.</p>
+					<span class="card-tag">THE TEST ENVIRONMENT</span>
+				</article>
+			</div>
+			<div class="problem-note">
+				<span class="note-mark">↳</span>
+				<p><strong>The research question:</strong> Can a model execute directly from Safetensors on Windows without requiring every weight to occupy VRAM at once?</p>
+			</div>
+		</section>
+
+		<section class="mission-section section-pad" id="research">
+			<div class="mission-grid">
+				<div>
+					<p class="eyebrow eyebrow-light">02 / THE RESEARCH MISSION</p>
+					<h2>Start with the <em>constraint.</em><br />Not the framework.</h2>
+				</div>
+				<blockquote>
+					<p>
+						Existing inference solutions assumed that entire models had to fit into GPU memory.
+						On a Windows Surface Book equipped with a 6 GB NVIDIA GPU, even small language models
+						required heavyweight software stacks, conversion pipelines, or cloud-based execution.
+					</p>
+					<p>
+						This project explores a different approach: running transformer models directly from
+						Safetensors files on Windows using C# and Direct3D compute shaders, while loading only
+						the tensors required for the current layer.
+					</p>
+					<footer><span class="quote-rule"></span> THE HYPOTHESIS UNDER INVESTIGATION</footer>
+				</blockquote>
+			</div>
+			<div class="idea-strip">
+				<div><span>01</span><strong>Load only what is needed.</strong></div>
+				<div><span>02</span><strong>Execute layer by layer.</strong></div>
+				<div><span>03</span><strong>Keep memory consumption under control.</strong></div>
+			</div>
+		</section>
+
+		<section class="architecture-section section-pad" id="architecture">
+			<div class="section-heading section-heading-row">
+				<div>
+					<p class="eyebrow">03 / THE APPROACH</p>
+					<h2>Make memory a <em>managed resource.</em></h2>
+				</div>
+				<p class="section-intro">The runtime treats GPU memory as a working window, not a destination for the entire model.</p>
+			</div>
+			<div class="architecture-compare">
+				<div class="compare-side compare-traditional">
+					<div class="compare-title"><span class="compare-icon">A</span><span>TRADITIONAL LOAD</span><span class="compare-label">MODEL-WIDE</span></div>
+					<div class="compare-flow">
+						<div class="flow-box">Load full model</div><span class="flow-arrow">→</span>
+						<div class="flow-box flow-box-heavy">Occupy VRAM</div><span class="flow-arrow">→</span>
+						<div class="flow-box">Inference</div>
+					</div>
+					<p>Simple execution path, but peak residency can exceed the available GPU memory.</p>
+				</div>
+				<div class="compare-side compare-streaming">
+					<div class="compare-title"><span class="compare-icon">B</span><span>LAYER STREAMING</span><span class="compare-label">WORKING-SET</span></div>
+					<div class="compare-flow">
+						<div class="flow-box">Load layer N</div><span class="flow-arrow">→</span>
+						<div class="flow-box flow-box-active">Compute</div><span class="flow-arrow">→</span>
+						<div class="flow-box">Release</div><span class="flow-arrow">→</span>
+						<div class="flow-box">Load N+1</div>
+					</div>
+					<p>Trade persistent residency for explicit weight movement and per-layer scheduling.</p>
+				</div>
+			</div>
+			<div class="tradeoff-row">
+				<div><span class="tradeoff-symbol">+</span><p><strong>Potential upside</strong>Lower resident weight memory; direct control over when tensors enter and leave the GPU.</p></div>
+				<div><span class="tradeoff-symbol tradeoff-minus">±</span><p><strong>Tradeoffs to measure</strong>Transfer overhead, synchronization, buffer reuse and end-to-end token throughput.</p></div>
+			</div>
+		</section>
+
+		<section class="principles-section section-pad">
+			<div class="principles-heading">
+				<p class="eyebrow">DESIGN PRINCIPLES</p>
+				<h2>Close to the <em>hardware.</em></h2>
+			</div>
+			<div class="principle-list">
+				<div><span>01</span><strong>Native Windows</strong><small>Build for the device in front of you.</small></div>
+				<div><span>02</span><strong>C# runtime</strong><small>A managed application, explicit GPU work.</small></div>
+				<div><span>03</span><strong>Direct3D compute</strong><small>Compute shaders for tensor operations.</small></div>
+				<div><span>04</span><strong>Direct Safetensors</strong><small>Read model weights without a conversion step.</small></div>
+				<div><span>05</span><strong>Layer streaming</strong><small>Move only the current working set.</small></div>
+				<div><span>06</span><strong>Dynamic KV cache</strong><small>Track context growth against a memory budget.</small></div>
+			</div>
+		</section>
+
+		<section class="runtime-section section-pad" id="runtime">
+			<div class="section-heading section-heading-row">
+				<div>
+					<p class="eyebrow">04 / THE PROJECT</p>
+					<h2>A small runtime, <em>end to end.</em></h2>
+				</div>
+				<p class="section-intro">The work spans file formats, GPU execution and token generation—not a new model architecture.</p>
+			</div>
+			<div class="runtime-grid">
+				<article class="runtime-card runtime-card-main">
+					<div class="runtime-card-top"><span>COMPONENT 01</span><span class="runtime-glyph">01</span></div>
+					<h3>Safetensors reader</h3>
+					<p>Inspect the file header, resolve tensor metadata, and read the data needed by each execution step.</p>
+					<ul><li>Header parsing</li><li>Tensor metadata &amp; offsets</li><li>Targeted tensor access</li><li>Streaming reads</li></ul>
+					<a href="/research/reading-safetensors-without-hugging-face/" class="card-link">Research note <span>↗</span></a>
+				</article>
+				<article class="runtime-card">
+					<div class="runtime-card-top"><span>COMPONENT 02</span><span class="runtime-glyph">02</span></div>
+					<h3>Direct3D runtime</h3>
+					<p>Allocate GPU buffers and execute the operations required for transformer inference.</p>
+					<ul><li>GPU buffer lifecycle</li><li>Compute shader dispatch</li><li>Matrix multiplication</li><li>Tensor operations</li></ul>
+					<a href="/research/transformers-with-direct3d-compute-shaders/" class="card-link">Research note <span>↗</span></a>
+				</article>
+				<article class="runtime-card">
+					<div class="runtime-card-top"><span>COMPONENT 03</span><span class="runtime-glyph">03</span></div>
+					<h3>Token generator</h3>
+					<p>Connect model components into a generation path with a memory-aware cache strategy.</p>
+					<ul><li>Embedding &amp; attention</li><li>Feed-forward network</li><li>Sampling</li><li>KV cache management</li></ul>
+					<a href="/research/managing-kv-cache-on-limited-memory-gpus/" class="card-link">Research note <span>↗</span></a>
+				</article>
+			</div>
+		</section>
+
+		<section class="publications-section section-pad" id="publications">
+			<div class="publications-heading">
+				<div>
+					<p class="eyebrow eyebrow-light">05 / FIELD NOTES</p>
+					<h2>Research, <em>in the open.</em></h2>
+				</div>
+				<p>Engineering notes on the decisions, constraints and measurements behind the runtime.</p>
+			</div>
+			<div class="publication-list">
+				{posts.map((post) => (
+					<a class="publication-row" href={`/research/${post.id}/`}>
+						<span class="publication-number">{String(post.data.order).padStart(2, "0")}</span>
+						<span class="publication-copy"><strong>{post.data.title}</strong><small>{post.data.description}</small></span>
+						<span class="publication-track">{post.data.track}</span>
+						<span class:list={["publication-status", post.data.status === "In progress" ? "status-progress" : ""]}>{post.data.status}</span>
+						<span class="publication-arrow" aria-hidden="true">↗</span>
+					</a>
+				))}
+			</div>
+			<p class="publication-footnote">Notes marked “Planned” are research outlines—not completed results or published claims.</p>
+		</section>
+
+		<section class="benchmark-section section-pad" id="benchmarks">
+			<div class="benchmark-top">
+				<div>
+					<p class="eyebrow">06 / MEASUREMENT</p>
+					<h2>Evidence before <em>claims.</em></h2>
+				</div>
+				<div class="benchmark-badge"><span></span> MEASUREMENTS IN PROGRESS</div>
+			</div>
+			<p class="benchmark-intro">The goal is to compare the memory and throughput tradeoffs on the target machine. No benchmark values are published until they have been measured and reproducibly recorded.</p>
+			<div class="benchmark-board">
+				<div class="benchmark-row benchmark-header"><span>TEST DIMENSION</span><span>BASELINE</span><span>STREAMING RUNTIME</span><span>STATUS</span></div>
+				<div class="benchmark-row"><strong>Target hardware</strong><span>Surface Book · Intel CPU</span><span>Windows · NVIDIA GPU · 6 GB</span><span class="measure-pending">Configured</span></div>
+				<div class="benchmark-row"><strong>Model</strong><span>Qwen 1.5B</span><span>Qwen 1.5B</span><span class="measure-pending">To measure</span></div>
+				<div class="benchmark-row"><strong>Memory</strong><span>Peak GPU memory</span><span>Resident weights + KV cache</span><span class="measure-pending">To measure</span></div>
+				<div class="benchmark-row"><strong>Throughput</strong><span>Prompt processing · tokens/s</span><span>Generation · tokens/s</span><span class="measure-pending">To measure</span></div>
+			</div>
+			<div class="benchmark-foot"><span>01 / HONEST BASELINES</span><span>02 / REPRODUCIBLE RUNS</span><span>03 / PUBLISHED METHODOLOGY</span></div>
+		</section>
+
+		<section class="about-section section-pad" id="about">
+			<div class="about-top">
+				<div class="about-label">
+					<p class="eyebrow">07 / ABOUT THE RESEARCHER</p>
+					<span class="about-mark" aria-hidden="true">R<span>.</span></span>
+				</div>
+				<div class="about-copy">
+					<h2>Building AI systems <em>from first principles.</em></h2>
+					<p class="about-lede">My work focuses on the practical execution of large language models on local hardware.</p>
+					<p>I hold a Ph.D. in Physics and have worked in software engineering, system architecture and technology leadership for more than three decades. Throughout my career I have been involved in building complex software systems, distributed platforms and data-driven applications.</p>
+					<p>My interest in artificial intelligence predates the current wave of large language models. Over the years I have implemented and experimented with various forms of neural networks and machine learning approaches, with a particular interest in understanding the mathematical foundations behind their behavior and limitations.</p>
+					<p>More recently, my research has focused on transformer-based language models, inference runtimes and efficient execution strategies for resource-constrained hardware. A central motivation is to reduce unnecessary dependencies on large cloud infrastructures and heavyweight software stacks. I am particularly interested in approaches that enable modern AI models to run efficiently on local, consumer-grade systems.</p>
+					<p>This research led to the development of a Windows-native inference runtime written in C#, capable of loading Safetensors models directly and executing transformer workloads through Direct3D compute shaders. The runtime employs layer streaming and memory-aware KV-cache management to operate within the limitations of consumer GPUs.</p>
+					<p>I believe that the best way to understand complex AI systems is to build them from first principles. Consequently, much of my work involves implementing core components directly, including tensor loading, memory management, inference execution and optimization strategies.</p>
+				</div>
+			</div>
+			<div class="about-bottom">
+				<div class="research-interests">
+					<p class="eyebrow">AREAS OF FOCUS</p>
+					<h3>Research Interests</h3>
+					<ul>
+						<li>Large Language Model Inference</li>
+						<li>Transformer Architectures</li>
+						<li>Memory-Constrained AI Systems</li>
+						<li>Local AI Execution</li>
+						<li>Safetensors Internals</li>
+						<li>Direct3D GPU Computing</li>
+						<li>State Space Models (Mamba)</li>
+						<li>AI Systems Architecture</li>
+						<li>Distributed Systems</li>
+						<li>Applied Machine Learning</li>
+					</ul>
+				</div>
+				<blockquote class="about-quote">
+					<span aria-hidden="true">“</span>
+					<p>My long-term goal is to make advanced AI systems more accessible, transparent and independent of heavyweight cloud environments by exploring efficient local inference architectures.</p>
+				</blockquote>
+			</div>
+		</section>
+	</main>
+
+	<footer class="site-footer">
+		<a class="brand" href="#top">
+			<span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+			<span>INFERENCE<span class="brand-divider">/</span>RESEARCH</span>
+		</a>
+		<p>Built around a question worth measuring.</p>
+		<a href="#top">Back to top ↑</a>
+	</footer>
+</SiteLayout>

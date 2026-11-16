@@ -1,0 +1,54 @@
+---
+import { getCollection, render, type CollectionEntry } from "astro:content";
+import SiteLayout from "../../layouts/SiteLayout.astro";
+
+export async function getStaticPaths() {
+	const posts = await getCollection("posts");
+
+	return posts.map((post) => ({
+		params: { slug: post.id },
+		props: { post },
+	}));
+}
+
+interface Props {
+	post: CollectionEntry<"posts">;
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+---
+
+<SiteLayout title={`${post.data.title} — Inference Research`} description={post.data.description}>
+	<header class="article-header">
+		<a class="brand" href="/">
+			<span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+			<span>INFERENCE<span class="brand-divider">/</span>RESEARCH</span>
+		</a>
+		<a class="article-back" href="/#publications">← All research</a>
+	</header>
+	<main id="main" class="article-main">
+		<a class="article-breadcrumb" href="/#publications">RESEARCH NOTES <span>/</span> {post.data.track.toUpperCase()}</a>
+		<header class="article-title-block">
+			<p class="eyebrow">NOTE {String(post.data.order).padStart(2, "0")} <span class="article-title-divider">/</span> {post.data.status.toUpperCase()}</p>
+			<h1>{post.data.title}</h1>
+			<p class="article-description">{post.data.description}</p>
+		</header>
+		<div class="article-rule"><span></span><span>WINDOWS-NATIVE LLM INFERENCE</span><span></span></div>
+		<article class="prose">
+			<Content />
+		</article>
+		<footer class="article-footer">
+			<a class="button button-dark" href="/#publications">← Back to all research</a>
+			<span>Research notes are updated as the work progresses.</span>
+		</footer>
+	</main>
+	<footer class="site-footer">
+		<a class="brand" href="/">
+			<span class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+			<span>INFERENCE<span class="brand-divider">/</span>RESEARCH</span>
+		</a>
+		<p>Built around a question worth measuring.</p>
+		<a href="/#top">Home ↑</a>
+	</footer>
+</SiteLayout>
