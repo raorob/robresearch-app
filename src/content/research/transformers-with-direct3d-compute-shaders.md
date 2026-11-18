@@ -99,6 +99,8 @@ For each group in a matrix row, the loader converts BF16 weights to signed 4-bit
 
 **Encoding correction:** The original automated runs sent UTF-8 input to a process expecting Windows console code page 437, corrupting four prompts containing German characters. Those four prompts were rerun with the correct input encoding for every variant; the unchanged ASCII-only prompts retain their original results. For BF16, the whole first set was rerun correctly. This table supersedes the earlier 8B results; notably, the word-order outputs and scores for groups 64 and 128 changed. The corrected prompts were run in separate model processes with the same settings and resets.
 
+**Output-limit review:** The limits of 12 and 20 tokens were too short for some Qwen2.5 answers, which were therefore rerun with a 128-token limit below. The 8B results were not rerun: the original and encoding-corrected logs show that every scored 8B answer stopped before its respective limit, so none was cut off by those limits. The reported decode-step counts were at most 3 for the first set and 10 for the additional set. This review does not establish that a longer limit would improve answer quality.
+
 These short, independently checkable questions cover arithmetic, factual recall, translation, simple logic and instruction following. The harder set was added after the initial ten produced identical results across all variants. This selection can reveal obvious regressions, but it is too small and simple to rank general capabilities or measure subtle probability changes.
 
 ### Results
@@ -145,16 +147,18 @@ The additional prompts exposed differences. BF16 and FP8 had identical outputs, 
 
 ### Reproducing the runs
 
-Build the `Qwen3Inference` project in Release mode, then from the inference repository root start each variant below. Enter each prompt from the tables as a separate line and enter `/reset` after each answer. Use `--max-tokens 12` for the first table and `--max-tokens 20` for the additional table. The examples below use 20; change that value for the first set.
+Build the `QwenInference` project in Release mode, then from the inference repository root start each variant below. The project was named `Qwen3Inference` at the time of the measurements and was later renamed because it also supports Qwen2.5. Enter each prompt from the tables as a separate line and enter `/reset` after each answer. Use `--max-tokens 12` for the first table and `--max-tokens 20` for the additional table. The examples below use 20; change that value for the first set.
 
 ```powershell
-dotnet build Qwen3Inference -c Release
-dotnet run --project Qwen3Inference -c Release --no-build -- --model qwen3-8b --precision bf16 --context 2048 --vram-fraction 0.8 --temp 0 --max-tokens 20
-dotnet run --project Qwen3Inference -c Release --no-build -- --model qwen3-8b --precision fp8 --context 2048 --vram-fraction 0.8 --temp 0 --max-tokens 20
-dotnet run --project Qwen3Inference -c Release --no-build -- --model qwen3-8b --precision int4 --group-size 32 --context 2048 --vram-fraction 0.8 --temp 0 --max-tokens 20
-dotnet run --project Qwen3Inference -c Release --no-build -- --model qwen3-8b --precision int4 --group-size 64 --context 2048 --vram-fraction 0.8 --temp 0 --max-tokens 20
-dotnet run --project Qwen3Inference -c Release --no-build -- --model qwen3-8b --precision int4 --group-size 128 --context 2048 --vram-fraction 0.8 --temp 0 --max-tokens 20
+dotnet build QwenInference -c Release
+dotnet run --project QwenInference -c Release --no-build -- --model qwen3-8b --precision bf16 --context 2048 --vram-fraction 0.8 --temp 0 --max-tokens 20
+dotnet run --project QwenInference -c Release --no-build -- --model qwen3-8b --precision fp8 --context 2048 --vram-fraction 0.8 --temp 0 --max-tokens 20
+dotnet run --project QwenInference -c Release --no-build -- --model qwen3-8b --precision int4 --group-size 32 --context 2048 --vram-fraction 0.8 --temp 0 --max-tokens 20
+dotnet run --project QwenInference -c Release --no-build -- --model qwen3-8b --precision int4 --group-size 64 --context 2048 --vram-fraction 0.8 --temp 0 --max-tokens 20
+dotnet run --project QwenInference -c Release --no-build -- --model qwen3-8b --precision int4 --group-size 128 --context 2048 --vram-fraction 0.8 --temp 0 --max-tokens 20
 ```
+
+For per-token timing diagnostics, set `QWEN_TRACE=1`. The old name `QWEN3_TRACE=1` remains supported for existing scripts.
 
 The SHA-256 hashes of the five model shards, in filename order, identify the tested weights:
 
@@ -166,7 +170,7 @@ model-00004-of-00005.safetensors  b5ee7de71fbf17db3d5704e0c8f2bc7d005ca9e1d7ca2a
 model-00005-of-00005.safetensors  20c2d6366ab85c90786ccdd829cd2b9e7d30ef3b2ebbb998280e7e4014b542ff
 ```
 
-For the tested runtime and model metadata, the SHA-256 hashes were:
+For the tested runtime and model metadata, the SHA-256 hashes were as follows. The runtime files were subsequently renamed (`Qwen3Engine.cs` to `QwenEngine.cs`, `Qwen3Kernels.hlsl` to `QwenKernels.hlsl`, and `Qwen3Generator.cs` to `QwenGenerator.cs`) and their contents changed for the rename. These historical hashes identify the tested files, not the current files.
 
 ```text
 Qwen3Engine.cs    80031c59b674d86dfbbd3b3b9021c563c92a06ca47d4e7e1064182a28a6b7422
@@ -185,43 +189,52 @@ A stronger follow-up would use a larger held-out benchmark and teacher-forced ne
 
 ## Follow-up: Qwen2.5-0.5B and 1.5B
 
-**Measured on 18 November 2026.** The same 16 prompts and expected answers above were also tested with Qwen2.5-0.5B-Instruct and Qwen2.5-1.5B-Instruct. The aim is to see whether the precision tradeoff observed with 8B also holds for smaller models; this is still a small exploratory test, not a standardized quality benchmark.
+**Repeated on 18 November 2026.** The same 16 prompts and expected answers above were also tested with Qwen2.5-0.5B-Instruct and Qwen2.5-1.5B-Instruct. The aim is to see whether the precision tradeoff observed with 8B also holds for smaller models; this is still a small exploratory test, not a standardized quality benchmark.
 
-The variants, hardware, VRAM budget, context, greedy decoding, output limits, and reset procedure were the same as above. Each variant was loaded separately for the first ten prompts and the additional six. The Qwen2.5 models use the runtime's Qwen2 chat template with its default system message, rather than Qwen3's non-thinking template. No inference code was changed for this follow-up.
+The variants, hardware, VRAM budget, context, greedy decoding and reset procedure were the same as above. The original 12/20-token limits cut off some Qwen2.5 responses before they were complete. Therefore, all 16 questions were repeated for both models and all five variants with **128 maximum output tokens**; the results below replace the earlier Qwen2.5 results. Each model and variant was loaded once for all 16 prompts, with `/reset` between prompts. The Qwen2.5 models use the runtime's Qwen2 chat template with its default system message, rather than Qwen3's non-thinking template. No inference code was changed for this follow-up.
 
 Earlier Qwen2.5 support added model-family selection from the configuration, Q/K/V projection biases instead of Qwen3's Q/K normalization, rotary attention with 64- or 128-dimensional heads, and support for tied embedding/output weights. The same INT4 group-size and shader path is used for both model families.
 
-For these runs, automated input was encoded using Windows console code page 437, matching the runtime's input encoding on the test machine. An initial UTF-8 input attempt produced corrupted German characters and was discarded; the results below are from the corrected runs. Responses are trimmed of surrounding whitespace. A response counts as correct only when it gives the requested answer in the requested form; terminal punctuation is ignored and commas are allowed between the uppercase words in the word-order task. Thus, for example, an explanatory sentence containing `Canberra` does not count when only the city name was requested. Incomplete answers caused by the output limit are counted incorrect.
+For these runs, automated input was encoded using Windows console code page 437, matching the runtime's input encoding on the test machine. An initial UTF-8 input attempt produced corrupted German characters and was discarded. Responses below are trimmed of surrounding whitespace.
+
+The runtime does not print an explicit stop reason, so its per-response decode-step counts were checked against the limit. Each of the 160 answers stopped well below 127 decode steps, and the reset context was far from full; in the current generator this means generation encountered a stop token, not the output limit. The longest response had 49 decode steps. A model can still stop naturally with an incorrect or awkward answer; it is not necessarily a complete grammatical sentence.
+
+Two manually checked scores are shown:
+
+- **Content:** the expected answer is present and not contradicted, even if surrounded by explanatory text. For the word-order task, correct order counts regardless of uppercase.
+- **Strict:** the expected answer is in the requested short form; terminal punctuation and commas between the requested uppercase words are allowed. A correct explanatory sentence does not satisfy a request for only a number or city name.
+
+For example, `144 geteilt durch 12 ist 12.` is correct content but not strict format. These are small, hand-scored results, not a general measure of language quality.
 
 ### Results
 
-| Model | Variant | Correct, first 10 | Correct, additional 6 | Total |
-| --- | --- | ---: | ---: | ---: |
-| 0.5B | BF16 | 2/10 | 0/6 | 2/16 |
-| 0.5B | FP8 | 2/10 | 0/6 | 2/16 |
-| 0.5B | INT4, group 32 | 2/10 | 1/6 | 3/16 |
-| 0.5B | INT4, group 64 | 3/10 | 0/6 | 3/16 |
-| 0.5B | INT4, group 128 | 1/10 | 1/6 | 2/16 |
-| 1.5B | BF16 | 9/10 | 2/6 | 11/16 |
-| 1.5B | FP8 | 9/10 | 1/6 | 10/16 |
-| 1.5B | INT4, group 32 | 10/10 | 1/6 | 11/16 |
-| 1.5B | INT4, group 64 | 8/10 | 1/6 | 9/16 |
-| 1.5B | INT4, group 128 | 6/10 | 0/6 | 6/16 |
+| Model | Variant | Content correct | Strict format and content |
+| --- | --- | ---: | ---: |
+| 0.5B | BF16 | 3/16 | 2/16 |
+| 0.5B | FP8 | 3/16 | 2/16 |
+| 0.5B | INT4, group 32 | 3/16 | 3/16 |
+| 0.5B | INT4, group 64 | 4/16 | 3/16 |
+| 0.5B | INT4, group 128 | 5/16 | 2/16 |
+| 1.5B | BF16 | 11/16 | 11/16 |
+| 1.5B | FP8 | 10/16 | 10/16 |
+| 1.5B | INT4, group 32 | 12/16 | 11/16 |
+| 1.5B | INT4, group 64 | 10/16 | 9/16 |
+| 1.5B | INT4, group 128 | 7/16 | 6/16 |
 
 The runtime reported all 24 layers and the LM head resident for 0.5B, and all 28 layers and the LM head resident for 1.5B, in every variant; reported streaming was 0.00 GiB per token. This is not an independent peak-memory measurement. In the INT4 variants the LM head is FP8 and the embeddings remain BF16, even though these models tie their output and embedding weights.
 
-The 0.5B BF16 baseline already struggled with this particular short-answer and instruction-following set. For 1.5B, group 128 scored lower than BF16 on this sample, while group 32 had the same total but different individual answers. These observations cannot establish a general quality ranking or isolate quantization error from the FP8 head. Some score differences include instruction-format failures, not just wrong facts.
+The 0.5B BF16 baseline already struggled with this particular short-answer and instruction-following set. For 1.5B, group 128 scored lower than BF16 on this sample, while group 32 had the same strict score but different individual answers. These observations cannot establish a general quality ranking or isolate quantization error from the FP8 head.
 
 ### Individual responses
 
-Rows 1–10 correspond in order to the first prompt table above; rows 11–16 correspond in order to the additional prompt table. The cells show the actual outputs, including incomplete ones.
+Rows 1–10 correspond in order to the first prompt table above; rows 11–16 correspond in order to the additional prompt table. The cells show the actual responses; the multiline 0.5B response for prompt 15 is reproduced in full below its table.
 
 **Qwen2.5-0.5B-Instruct**
 
 | Prompt | BF16 | FP8 | INT4 32 | INT4 64 | INT4 128 |
 | ---: | --- | --- | --- | --- | --- |
 | 1 | `34` | `34` | `17 * 23 = 321` | `30` | `30` |
-| 2 | `144 geteilt durch 12 ist` | `144 geteilt durch 12 ist` | `144` | `144 geteilt durch 12 ist` | `144 geteilt durch 12 ist` |
+| 2 | `144 geteilt durch 12 ist 12.` | `144 geteilt durch 12 ist 12.` | `144` | `144 geteilt durch 12 ist 12.` | `144 geteilt durch 12 ist 12.` |
 | 3 | `7` | `7` | `7` | `9` | `7` |
 | 4 | `Sydney` | `Sydney` | `Hoboken` | `Sydney` | `The capital of Australia is Canberra.` |
 | 5 | `O2` | `O2` | `SO2` | `O` | `#chem#S#O#` |
@@ -234,8 +247,18 @@ Rows 1–10 correspond in order to the first prompt table above; rows 11–16 co
 | 12 | `16` | `16` | `60` | `12` | `60` |
 | 13 | `4` | `12` | `12` | `12` | `3` |
 | 14 | `Ja` | `Ja` | `Ja` | `Ja` | `Ja.` |
-| 15 | `rot, blau, grün.` | `rot, blau, grün.` | `rot, blau, grün.` | `rot, grün, blau` | `Hier ist die Übersetzung von den gegebenen Wörter in umgekehrter` |
+| 15 | `rot, blau, grün.` | `rot, blau, grün.` | `rot, blau, grün.` | `rot, grün, blau` | See full response below |
 | 16 | `28. Februar 2024` | `28. Februar 2024` | `2024-02-28` | `2024-02-28` | `2024-02-28` |
+
+0.5B, INT4 group 128, prompt 15:
+
+```text
+Hier ist die Übersetzung von den gegebenen Wörter in umgekehrter Reihenfolge und in Großbuchstaben:
+
+blau -> außäße
+rot -> rot
+grün -> grün
+```
 
 **Qwen2.5-1.5B-Instruct**
 
@@ -255,12 +278,12 @@ Rows 1–10 correspond in order to the first prompt table above; rows 11–16 co
 | 12 | `64` | `64` | `48` | `64` | `64` |
 | 13 | `1` | `1` | `1` | `1` | `3` |
 | 14 | `Nein` | `Ja` | `Nein` | `Nein` | `Ja` |
-| 15 | `GRÜN, ROT, BLAU` | `GRÜN, ROT, BLAU` | `grün, rot, blau` | `Grün, Rot, Blau` | `Die Wörter in umgekehrter Reihenfolge und in Großbuchstaben` |
+| 15 | `GRÜN, ROT, BLAU` | `GRÜN, ROT, BLAU` | `grün, rot, blau` | `Grün, Rot, Blau` | `Die Wörter in umgekehrter Reihenfolge und in Großbuchstaben sind: GRÜN, ROT, BLAU.` |
 | 16 | `01. März 2024` | `01. März 2024` | `01. März 2024` | `3. März 2024` | `3. März 2024` |
 
 ### Reproduction
 
-Use the commands in the 8B section, replacing `--model qwen3-8b` with `--model qwen2.5-0.5b` or `--model qwen2.5-1.5b`. As above, use `--max-tokens 12` for the first ten prompts and `20` for the remaining six, with `/reset` between prompts. If automating redirected input on Windows, encode it to match the runtime's `Console.InputEncoding`; otherwise non-ASCII prompts may change before tokenization.
+Use the commands in the 8B section, replacing `--model qwen3-8b` with `--model qwen2.5-0.5b` or `--model qwen2.5-1.5b` and replacing the token limit with `--max-tokens 128` for all 16 prompts. Use `/reset` between prompts. If automating redirected input on Windows, encode it to match the runtime's `Console.InputEncoding`; otherwise non-ASCII prompts may change before tokenization.
 
 The tested model files have these SHA-256 hashes:
 

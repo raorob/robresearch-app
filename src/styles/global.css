@@ -242,6 +242,9 @@ h1, h2, h3, p { margin-top: 0; }
 .prose table { display: block; width: 100%; overflow-x: auto; margin: 24px 0; border-collapse: collapse; font-size: 11px; }
 .prose th, .prose td { padding: 10px; border: 1px solid var(--line); text-align: left; }
 .prose th { color: var(--ink); background: #f0f3ee; }
+.prose .inference-video { margin: 25px 0 34px; }
+.prose .inference-video video { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #1d2924; }
+.prose .inference-video figcaption { margin-top: 8px; color: #68746e; font-size: 12px; }
 .prose .katex-display { overflow-x: auto; overflow-y: hidden; margin: 25px 0; padding: 16px 12px; background: #eff2ed; }
 .mermaid-diagram { overflow-x: auto; margin: 25px 0; padding: 23px; background: #eff2ed; text-align: center; }
 .mermaid-diagram svg { max-width: 100%; height: auto; }

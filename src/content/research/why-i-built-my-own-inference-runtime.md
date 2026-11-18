@@ -33,6 +33,36 @@ The work proceeded in three stages:
 
 Subsequent work added Qwen2.5 family differences, configurable FP8 and INT4 weights, and measured the resulting [quality](/research/transformers-with-direct3d-compute-shaders/) and [residency](/research/layer-streaming-for-large-language-models/). The GPU does the transformer operations; tokenization, sampling, initial weight conversion and orchestration are CPU-side.
 
+The application now uses an `IInferenceProvider` with three operations: `LoadModel` creates a disposable context, `DoPreFill` processes each prompt, and `GetNextToken` supplies text fragments until it returns `null`. A fragment can be empty when a token does not complete a UTF-8 character. The context retains the KV cache and conversation state between prompts; `/reset` clears that state, and disposing the context releases the model and GPU resources. This interface refactoring was performed after the published quality measurements.
+
+## Inference in action
+
+These recordings show the console generating text alongside the GPU performance view in Windows Task Manager. They illustrate individual runs, not a controlled throughput benchmark.
+
+<figure class="inference-video">
+  <video controls preload="none" playsinline aria-label="Qwen2.5-0.5B console generation and GPU performance">
+    <source src="/videos/Qwen2.5-0.5B.mp4" type="video/mp4">
+    Your browser cannot play this video.
+  </video>
+  <figcaption><strong>Qwen2.5-0.5B</strong> · 56 seconds · <a href="/videos/Qwen2.5-0.5B.mp4">Open video</a></figcaption>
+</figure>
+
+<figure class="inference-video">
+  <video controls preload="none" playsinline aria-label="Qwen2.5-1.5B console generation and GPU performance">
+    <source src="/videos/Qwen2.5-1.5B.mp4" type="video/mp4">
+    Your browser cannot play this video.
+  </video>
+  <figcaption><strong>Qwen2.5-1.5B</strong> · 1 minute 16 seconds · <a href="/videos/Qwen2.5-1.5B.mp4">Open video</a></figcaption>
+</figure>
+
+<figure class="inference-video">
+  <video controls preload="none" playsinline aria-label="Qwen3-8B console generation and GPU performance">
+    <source src="/videos/Qwen3-8B.mp4" type="video/mp4">
+    Your browser cannot play this video.
+  </video>
+  <figcaption><strong>Qwen3-8B</strong> · 1 minute 52 seconds · <a href="/videos/Qwen3-8B.mp4">Open video</a></figcaption>
+</figure>
+
 ## Memory is more than model weights
 
 Model weights are only one part of the inference working set. Activations and the KV cache also consume memory, and the cache grows as the context grows. A useful starting point for the investigation is:
