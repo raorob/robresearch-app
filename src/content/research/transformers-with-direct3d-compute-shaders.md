@@ -147,7 +147,7 @@ The additional prompts exposed differences. BF16 and FP8 had identical outputs, 
 
 ### Reproducing the runs
 
-Build the `QwenInference` project in Release mode, then from the inference repository root start each variant below. The project was named `Qwen3Inference` at the time of the measurements and was later renamed because it also supports Qwen2.5. Enter each prompt from the tables as a separate line and enter `/reset` after each answer. Use `--max-tokens 12` for the first table and `--max-tokens 20` for the additional table. The examples below use 20; change that value for the first set.
+Build the `QwenInference` project in Release mode, then from the inference repository root start each variant below. Enter each prompt from the tables as a separate line and enter `/reset` after each answer. Use `--max-tokens 12` for the first table and `--max-tokens 20` for the additional table. The examples below use 20; change that value for the first set.
 
 ```powershell
 dotnet build QwenInference -c Release
@@ -158,7 +158,7 @@ dotnet run --project QwenInference -c Release --no-build -- --model qwen3-8b --p
 dotnet run --project QwenInference -c Release --no-build -- --model qwen3-8b --precision int4 --group-size 128 --context 2048 --vram-fraction 0.8 --temp 0 --max-tokens 20
 ```
 
-For per-token timing diagnostics, set `QWEN_TRACE=1`. The old name `QWEN3_TRACE=1` remains supported for existing scripts.
+For per-token timing diagnostics, set `QWEN_TRACE=1`.
 
 The SHA-256 hashes of the five model shards, in filename order, identify the tested weights:
 
@@ -170,12 +170,12 @@ model-00004-of-00005.safetensors  b5ee7de71fbf17db3d5704e0c8f2bc7d005ca9e1d7ca2a
 model-00005-of-00005.safetensors  20c2d6366ab85c90786ccdd829cd2b9e7d30ef3b2ebbb998280e7e4014b542ff
 ```
 
-For the tested runtime and model metadata, the SHA-256 hashes were as follows. The runtime files were subsequently renamed (`Qwen3Engine.cs` to `QwenEngine.cs`, `Qwen3Kernels.hlsl` to `QwenKernels.hlsl`, and `Qwen3Generator.cs` to `QwenGenerator.cs`) and their contents changed for the rename. These historical hashes identify the tested files, not the current files.
+The SHA-256 hashes below identify the source versions and model metadata used for the measurements. The source hashes may differ from the current files.
 
 ```text
-Qwen3Engine.cs    80031c59b674d86dfbbd3b3b9021c563c92a06ca47d4e7e1064182a28a6b7422
-Qwen3Kernels.hlsl c7eb51bcc8c5f7f95411c47db665392600d8458056344d8346a28d796e60137d
-Qwen3Generator.cs 3de5394773031e01d856608e1dc42a8d8cf79124527834a599bca0d5923e4eb7
+QwenEngine.cs     80031c59b674d86dfbbd3b3b9021c563c92a06ca47d4e7e1064182a28a6b7422
+QwenKernels.hlsl  c7eb51bcc8c5f7f95411c47db665392600d8458056344d8346a28d796e60137d
+QwenGenerator.cs  3de5394773031e01d856608e1dc42a8d8cf79124527834a599bca0d5923e4eb7
 Program.cs        3e705c2176519c0d068eab84c687fc9ef5608a7821e9810cdc6a87f6e82e65ba
 tokenizer.json    aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4
 config.json       f7c4eadfbbf522470667b797a3c89be2524832d2d599797248dc304fff447c30
