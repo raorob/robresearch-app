@@ -1,14 +1,14 @@
 ---
 title: "Managing KV Cache on GPUs with Limited Memory"
-description: "An outline for observing context growth and evaluating cache policies under a GPU memory budget."
+description: "How the runtime allocates key/value caches alongside a constrained GPU weight budget."
 order: 5
 track: "Memory management"
-status: "Planned"
+status: "In progress"
 ---
 
 ## Context has a memory cost
 
-As tokens are processed, the key/value cache grows with the context. Even if layer streaming reduces resident weight memory, the cache and intermediate activations still compete for GPU capacity.
+As tokens are processed, the number of used key/value entries grows with the context. In this implementation, however, the FP32 GPU buffers are allocated upfront for the **configured maximum context** rather than growing dynamically. Even if layer streaming reduces resident weight memory, the allocated cache and intermediate activations compete for GPU capacity.
 
 For a decoder model, a first-order estimate is:
 
@@ -19,11 +19,21 @@ $$
 
 where $L$ is the number of layers, $T$ is the cached sequence length, $H_{\mathrm{KV}}$ is the number of key/value heads, $D_{\mathrm{head}}$ is the head dimension, and $B$ is the bytes per value. This estimate omits allocator overhead and implementation-specific layouts.
 
-## An 80% target as a hypothesis
+For the default 2,048-token context and FP32 cache values ($B=4$), the three configurations require:
 
-One strategy to investigate is growing the KV cache dynamically up to a target of **80% GPU memory utilization**, leaving headroom for other runtime allocations. That threshold is a proposed policy to evaluate, not a universal optimum or a measured result.
+| Model | Layers | KV heads | Head dimension | Allocated KV cache |
+| --- | ---: | ---: | ---: | ---: |
+| Qwen2.5-0.5B | 24 | 2 | 64 | 48 MiB |
+| Qwen2.5-1.5B | 28 | 2 | 128 | 112 MiB |
+| Qwen3-8B | 36 | 8 | 128 | 576 MiB |
 
-When the target is approached, possible strategies include trimming context or moving some cache data to CPU memory. Both change model behavior or performance and need explicit evaluation.
+For example, Qwen3-8B uses $2 \times 36 \times 2048 \times 8 \times 128 \times 4 = 603{,}979{,}776$ bytes, or 576 MiB. This excludes other buffers and driver overhead.
+
+## The 80% weight-planning target
+
+The runtime's default 80% fraction applies to a **weight-residency planning estimate**, not dynamic KV-cache growth or a guaranteed global GPU usage cap. It subtracts the already allocated KV buffers, scratch space and streaming slots from the target before choosing resident layers. Small norm/bias buffers, transfer resources, driver overhead and other processes are not all included. See [layer streaming](/research/layer-streaming-for-large-language-models/) for the observed layer counts and the limitations of that estimate.
+
+The implementation does not dynamically trim the conversation or offload the KV cache to CPU memory. When the configured context is full, the user can reset the conversation or restart with a larger context, if memory permits.
 
 ## Questions to answer
 

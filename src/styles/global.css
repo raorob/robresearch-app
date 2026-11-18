@@ -212,6 +212,7 @@ h1, h2, h3, p { margin-top: 0; }
 .site-footer .brand { color: #ecf1ed; }
 .site-footer p, .site-footer > a:last-child { margin: 0; color: #9ba69f; font-size: 10px; }
 .site-footer > a:last-child:hover { color: var(--green); }
+.ai-credit { padding: 14px 7.3vw; color: #c1cbc5; background: var(--dark); border-top: 1px solid #394640; font-size: 11px; }
 
 .article-header { border-bottom-color: #e3e7e2; }
 .article-back { color: #59655f; font-size: 11px; font-weight: 600; }
@@ -238,7 +239,7 @@ h1, h2, h3, p { margin-top: 0; }
 .prose pre { overflow-x: auto; margin: 24px 0; padding: 20px; color: #e8eee9; background: #1d2924; font: 11px/1.75 var(--mono); }
 .prose code { font-family: var(--mono); font-size: .88em; }
 .prose :not(pre) > code { padding: 2px 5px; color: #425a35; background: #e9eee4; }
-.prose table { width: 100%; margin: 24px 0; border-collapse: collapse; font-size: 11px; }
+.prose table { display: block; width: 100%; overflow-x: auto; margin: 24px 0; border-collapse: collapse; font-size: 11px; }
 .prose th, .prose td { padding: 10px; border: 1px solid var(--line); text-align: left; }
 .prose th { color: var(--ink); background: #f0f3ee; }
 .prose .katex-display { overflow-x: auto; overflow-y: hidden; margin: 25px 0; padding: 16px 12px; background: #eff2ed; }

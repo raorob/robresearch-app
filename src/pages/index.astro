@@ -244,7 +244,7 @@ const posts = (await getCollection("posts")).sort((a, b) => a.data.order - b.dat
 				</div>
 				<div class="benchmark-badge"><span></span> MEASUREMENTS IN PROGRESS</div>
 			</div>
-			<p class="benchmark-intro">The goal is to compare the memory and throughput tradeoffs on the target machine. No benchmark values are published until they have been measured and reproducibly recorded.</p>
+			<p class="benchmark-intro">Small <a href="/research/transformers-with-direct3d-compute-shaders/">Qwen3-8B and Qwen2.5 precision experiments</a> compare answers across INT4 group sizes against BF16 and FP8. The separate streaming memory and throughput comparison below is still to be measured.</p>
 			<div class="benchmark-board">
 				<div class="benchmark-row benchmark-header"><span>TEST DIMENSION</span><span>BASELINE</span><span>STREAMING RUNTIME</span><span>STATUS</span></div>
 				<div class="benchmark-row"><strong>Target hardware</strong><span>Surface Book · Intel CPU</span><span>Windows · NVIDIA GPU · 6 GB</span><span class="measure-pending">Configured</span></div>

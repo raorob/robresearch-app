@@ -17,11 +17,21 @@ Each of those options can be useful. But they also left a question I wanted to i
 The initial premise was not to invent a new transformer. The interesting systems question was how to work within a tight memory budget:
 
 - Read weights directly from Safetensors files.
-- Load only the tensors needed for the current layer.
+- Keep layers resident when they fit and stream the remaining weight matrices.
 - Execute the layer using Direct3D compute shaders.
 - Manage the growing KV cache as part of the same memory budget.
 
 The aim is an end-to-end C# runtime for Windows, with fewer conversion steps and an execution path that can be inspected one layer at a time.
+
+## Building the inference engine
+
+The work proceeded in three stages:
+
+1. **Loader first.** Read the Safetensors headers and model configuration, map the original weights into the process address space, and resolve the tensor names, shapes, types and offsets needed by each layer. This made it possible to access original BF16 data without converting the model to another file format. See [the loader note](/research/reading-safetensors-without-hugging-face/).
+2. **Prompt prefill next.** Tokenize the prompt and run its tokens through the transformer, filling each layer's key/value cache. The current engine processes up to 32 prompt tokens in a batch, organized layer by layer so streamed weights can be reused within the batch.
+3. **Token loop last.** Use the last prompt logits to choose a token, feed generated tokens back through the model one at a time, append their keys and values to the cache, and stop on an end token or the configured output limit. The interactive loop retains the conversation until `/reset` or the context limit.
+
+Subsequent work added Qwen2.5 family differences, configurable FP8 and INT4 weights, and measured the resulting [quality](/research/transformers-with-direct3d-compute-shaders/) and [residency](/research/layer-streaming-for-large-language-models/). The GPU does the transformer operations; tokenization, sampling, initial weight conversion and orchestration are CPU-side.
 
 ## Memory is more than model weights
 
@@ -39,16 +49,15 @@ Layer streaming is intended to change the resident-weights term. It does not rem
 
 ## The working hypothesis
 
-Loading one layer at a time may reduce the amount of model weight data that must remain resident on the GPU. The tradeoff is additional coordination: reading, transferring, scheduling and releasing tensors around each layer.
+Keeping only some weights resident reduces the amount that must remain in GPU memory. The tradeoff is coordinating transfers and compute for the remaining layers.
 
 ```mermaid
 flowchart LR
-    A[Safetensors file] --> B[Read layer N]
-    B --> C[Upload working set]
+    A[Safetensors file] --> B[Map weights in CPU address space]
+    B --> C[Resident layers or streaming slots]
     C --> D[Direct3D compute]
-    D --> E[Release layer buffers]
-    E --> F[Read layer N+1]
-    F --> C
+    D --> E[Reuse slots for next layer]
+    E --> C
     D --> G[Next token state]
 ```
 
@@ -56,6 +65,4 @@ The question is not simply whether streaming uses less memory. It is whether the
 
 ## What remains to be demonstrated
 
-This is a research prototype, not a claim that every model or workload will benefit. The next steps are to validate tensor loading and operations, establish a reproducible baseline, and record peak memory and throughput for prompt processing and generation.
-
-No performance comparison is published here yet. The measurements should make the limits and tradeoffs visible, including the cost of moving weights layer by layer.
+This is a research prototype, not a claim that every model or workload will benefit. The published small quality experiment and runtime residency reports are initial observations, not a comprehensive benchmark. Further work includes independently checking tensor operations and measuring peak memory, actual transfers and prompt and generation throughput under controlled conditions.

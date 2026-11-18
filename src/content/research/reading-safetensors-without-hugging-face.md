@@ -1,21 +1,19 @@
 ---
 title: "Reading Safetensors without Hugging Face"
-description: "An outline for parsing tensor metadata and reading model data directly from Safetensors files."
+description: "Mapping original Safetensors weights into the C# inference runtime."
 order: 2
 track: "File formats"
-status: "Planned"
+status: "In progress"
 ---
 
-## Research outline
+## The loader boundary
 
-This note will document a direct Safetensors reader for the Windows runtime: how the file header is parsed, how tensor names, shapes, data types and byte offsets are represented, and how the underlying data is accessed.
+The first stage of the runtime was a C# Safetensors loader. Each shard starts with an eight-byte little-endian header length followed by a JSON header. The header records each tensor's name, data type, shape and byte offsets relative to the data region. The loader memory-maps the file and resolves these offsets into the mapped address space rather than copying all BF16 weights into separate arrays.
 
-## Topics to investigate
+For a sharded model, `model.safetensors.index.json` identifies the shard files; otherwise the runtime opens `model.safetensors`. The engine looks up the named weights it needs and checks their expected BF16 type and shape. Qwen2.5's tied embedding matrix is also used as the source for its output head; Qwen3 has a separate head tensor.
 
-- Header parsing and validation
-- Tensor metadata and byte ranges
-- Mapping tensor data to the runtime's expected layouts
-- Reading only the data needed for a streamed layer
-- Error handling for unsupported or malformed inputs
+## From file mapping to GPU work
 
-The reader is a boundary between a model artifact and GPU execution. Its correctness needs to be verified independently of inference results.
+The mapping is not the same thing as loading the whole model into GPU VRAM. Windows brings mapped file pages into host memory as needed. For BF16 execution, the loader can supply source bytes from the mapping; for FP8 or INT4, the engine creates quantized host-memory chunks during initialization. Resident matrices are uploaded to GPU buffers; the rest use reusable streaming slots. The [memory note](/research/layer-streaming-for-large-language-models/) describes what is resident and what moves per token.
+
+The reader is a boundary between a model artifact and GPU execution. The runtime checks expected tensor names, shapes and types when accessing them, but this prototype is not a comprehensive validator for arbitrary untrusted Safetensors files. Its correctness and error handling need independent testing beyond the model runs documented here.
