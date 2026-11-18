@@ -111,6 +111,10 @@ These recordings show the console generating text alongside the GPU performance 
   <figcaption><strong>Qwen3-8B</strong> · 1 minute 52 seconds · <a href="/videos/Qwen3-8B.mp4">Open video</a></figcaption>
 </figure>
 
+On the GTX 1660 Ti Max-Q, Qwen3-8B with **INT4 and group size 128** achieves a useful generation speed despite the older GPU. In one short-prompt run, the runtime reported about 9 decode tokens/s; a comparable BF16 run reported about 0.2 decode tokens/s. These are individual observations, not a controlled throughput benchmark, and exclude prompt prefill. In the small 16-question [quality experiment](/research/transformers-with-direct3d-compute-shaders/), INT4/128 scored 13/16 versus 14/16 for BF16: a small difference in this sample, though not enough to establish the general quality loss.
+
+The CLI's `fp16` option uses the model's original **BF16** weights. In the measured 80%-budget configuration only 10 of the 36 layers were resident in BF16. The remaining 26 layers and the output head are streamed from CPU memory to reusable GPU buffers in chunks during decoding. The runtime estimated 10.50 GiB of streamed weights per decode step. This repeated CPU-to-GPU transfer helps explain the slower generation; actual traffic and PCIe bandwidth have not been independently measured. See the [layer-streaming analysis](/research/layer-streaming-for-large-language-models/).
+
 ## Memory is more than model weights
 
 Model weights are only one part of the inference working set. Activations and the KV cache also consume memory, and the cache grows as the context grows. A useful starting point for the investigation is:
