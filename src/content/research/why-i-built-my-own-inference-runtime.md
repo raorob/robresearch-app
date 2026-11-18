@@ -33,7 +33,55 @@ The work proceeded in three stages:
 
 Subsequent work added Qwen2.5 family differences, configurable FP8 and INT4 weights, and measured the resulting [quality](/research/transformers-with-direct3d-compute-shaders/) and [residency](/research/layer-streaming-for-large-language-models/). The GPU does the transformer operations; tokenization, sampling, initial weight conversion and orchestration are CPU-side.
 
-The application now uses an `IInferenceProvider` with three operations: `LoadModel` creates a disposable context, `DoPreFill` processes each prompt, and `GetNextToken` supplies text fragments until it returns `null`. A fragment can be empty when a token does not complete a UTF-8 character. The context retains the KV cache and conversation state between prompts; `/reset` clears that state, and disposing the context releases the model and GPU resources. This interface refactoring was performed after the published quality measurements.
+## Using the engine in a C# AI application
+
+A C# application or agent can call the engine directly through `IInferenceProvider`. The generation path uses three methods: `LoadModel` creates a model context, `DoPreFill` processes a prompt, and `GetNextToken` returns successive text fragments until it returns `null`. This interface was added after the published quality measurements.
+
+Add a project reference to `QwenInference.csproj` and restore its dependencies. The example below uses the same generation code as `Program.cs`; replace `modelDirectory` with the directory containing the model's `config.json`, tokenizer and Safetensors files.
+
+```csharp
+using System.Diagnostics;
+using QwenInference;
+
+string? modelDirectory = @"C:\models\Qwen3-8B";
+var context = 2048;
+var fraction = 0.8;
+var precision = WeightPrecision.Bf16;
+var groupSize = 32;
+var maxTokens = 256;
+var think = false;
+float? temperature = null;
+void Log(string message) => Console.Error.WriteLine(message);
+
+IInferenceProvider provider = new QwenInferenceProvider();
+var options = new ModelOptions(context, fraction, precision, groupSize, maxTokens, think, temperature);
+using var model = provider.LoadModel(modelDirectory ?? "qwen3-8b", options, Log);
+
+void Run(string text)
+{
+    var timer = Stopwatch.StartNew();
+    provider.DoPreFill(model, text);
+    string? token;
+    while ((token = provider.GetNextToken(model)) is not null)
+        Console.Write(token);
+    Console.WriteLine();
+    var times = model.TokenSeconds;
+    var stats = times.Count > 0
+        ? $" | {times.Count} Tokens/s min {1 / times.Max():N2} avg {times.Count / times.Sum():N2} max {1 / times.Min():N2}"
+        : "";
+    Log($"[{timer.Elapsed.TotalSeconds:N1}s{stats}]");
+}
+
+Run("What is the capital of France?");
+```
+
+For Qwen3-8B on a smaller GPU, `WeightPrecision.Int4` with `groupSize = 128` is an alternative to BF16; see the [precision and quality experiments](/research/transformers-with-direct3d-compute-shaders/). The example's BF16 configuration may need substantial weight streaming.
+
+In an application, replace `Console.Write` with a UI or agent output handler. A fragment can be empty when a token does not complete a UTF-8 character; `null` signals the end. Reuse the context for follow-up prompts to retain the conversation and KV cache, or call `model.Reset()` for a new conversation. Complete the current generation or reset it before starting another prompt. Disposing the context releases the model and GPU resources. The application remains responsible for agent orchestration, tools and any safety checks.
+
+This is an **in-process** integration: there is no separate inference server or HTTP request between the C# application and the engine. Other runtimes, such as llama.cpp, can also be integrated through native libraries; they may alternatively be used through a server API. This engine does not require Python, CUDA, cuDNN, ONNX conversion or a separate inference engine.
+
+The GPU is not the only prerequisite: the application needs Windows with a compatible Direct3D 11 compute GPU and driver, .NET 10, the project's Vortice dependencies, the shader file `QwenKernels.hlsl` beside the executable, and local supported model files. It also needs sufficient system RAM and VRAM. The engine can stream nonresident weights from CPU memory, so the entire model does not need to fit in GPU memory, but streaming can slow generation.
 
 ## Inference in action
 
